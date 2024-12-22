@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_product/helpers/database_helper.dart';
+import 'package:flutter_product/modules/product/product_list/product_list_provider.dart';
 import 'package:flutter_product/routes/route_names.dart';
 import 'package:flutter_product/widgets/my_appbar.dart';
+import 'package:provider/provider.dart';
 
 class ProductListPage extends StatefulWidget {
   const ProductListPage({super.key});
@@ -11,26 +12,19 @@ class ProductListPage extends StatefulWidget {
 }
 
 class _ProductListPageState extends State<ProductListPage> {
-  List<Map<String, dynamic>> _products = [];
-  final DatabaseHelper _dbHelper = DatabaseHelper();
-
-  @override
-  void initState() {
-    super.initState();
-    _loadProducts();
-  }
-
-  Future<void> _loadProducts() async {
-    final products = await _dbHelper.getAll(DatabaseHelper.productsTable);
-    setState(() => _products = products);
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: _buildAppBar(context),
-      body: _buildBody(context),
-      floatingActionButton: _buildFab(context),
+    return ChangeNotifierProvider(
+      create: (_) => ProductListProvider()..init(),
+      child: Consumer<ProductListProvider>(
+        builder: (BuildContext context, ProductListProvider provider, Widget? _) {
+          return Scaffold(
+            appBar: _buildAppBar(context),
+            body: _buildBody(context, provider),
+            floatingActionButton: _buildFab(context),
+          );
+        },
+      ),
     );
   }
 
@@ -42,14 +36,14 @@ class _ProductListPageState extends State<ProductListPage> {
     );
   }
 
-  Widget _buildBody(BuildContext context) {
+  Widget _buildBody(BuildContext context, ProductListProvider provider) {
     return ListView.builder(
-      itemCount: _products.length,
+      itemCount: provider.products.length,
       itemBuilder: (context, index) {
-        final product = _products[index];
+        final product = provider.products[index];
         return ListTile(
-          title: Text(product['name']),
-          subtitle: Text('RM ${product['price']}'),
+          title: Text(product.name),
+          subtitle: Text('RM ${product.price.toStringAsFixed(2)}'),
         );
       },
     );

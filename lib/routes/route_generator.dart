@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_product/modules/category/category_add_page.dart';
-import 'package:flutter_product/modules/category/category_list_page.dart';
-import 'package:flutter_product/modules/company/company_add_page.dart';
-import 'package:flutter_product/modules/company/company_list_page.dart';
+import 'package:flutter_product/modules/category/category_add/category_add_page.dart';
+import 'package:flutter_product/modules/category/category_list/category_list_page.dart';
+import 'package:flutter_product/modules/company/company_add/company_add_page.dart';
+import 'package:flutter_product/modules/company/company_list/company_list_page.dart';
 import 'package:flutter_product/modules/home/home_page.dart';
-import 'package:flutter_product/modules/product/product_add_page.dart';
-import 'package:flutter_product/modules/product/product_list_page.dart';
+import 'package:flutter_product/modules/product/product_add/product_add_page.dart';
+import 'package:flutter_product/modules/product/product_list/product_list_page.dart';
 import 'package:flutter_product/splash_page.dart';
 import 'route_names.dart';
 

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_product/helpers/database_helper.dart';
+import 'package:flutter_product/modules/company/company_list/company_list_provider.dart';
 import 'package:flutter_product/routes/route_names.dart';
 import 'package:flutter_product/widgets/my_appbar.dart';
+import 'package:provider/provider.dart';
 
 class CompanyListPage extends StatefulWidget {
   const CompanyListPage({super.key});
@@ -11,26 +12,19 @@ class CompanyListPage extends StatefulWidget {
 }
 
 class _CompanyListPageState extends State<CompanyListPage> {
-  List<Map<String, dynamic>> _companies = [];
-  final DatabaseHelper _dbHelper = DatabaseHelper();
-
-  @override
-  void initState() {
-    super.initState();
-    _loadProducts();
-  }
-
-  Future<void> _loadProducts() async {
-    final companies = await _dbHelper.getAll(DatabaseHelper.companiesTable);
-    setState(() => _companies = companies);
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: _buildAppBar(context),
-      body: _buildBody(context),
-      floatingActionButton: _buildFab(context),
+    return ChangeNotifierProvider(
+      create: (_) => CompanyListProvider()..init(),
+      child: Consumer<CompanyListProvider>(
+        builder: (BuildContext context, CompanyListProvider provider, Widget? child) {
+          return Scaffold(
+            appBar: _buildAppBar(context),
+            body: _buildBody(context, provider),
+            floatingActionButton: _buildFab(context),
+          );
+        },
+      ),
     );
   }
 
@@ -42,15 +36,15 @@ class _CompanyListPageState extends State<CompanyListPage> {
     );
   }
 
-  Widget _buildBody(BuildContext context) {
+  Widget _buildBody(BuildContext context, CompanyListProvider provider) {
     return ListView.builder(
-      itemCount: _companies.length,
+      itemCount: provider.companies.length,
       itemBuilder: (context, index) {
-        final company = _companies[index];
+        final company = provider.companies[index];
         return ListTile(
           trailing: Icon(Icons.arrow_forward_ios_outlined),
           leading: Icon(Icons.home_work_outlined),
-          title: Text(company['name']),
+          title: Text(company.name),
           onTap: () {},
         );
       },

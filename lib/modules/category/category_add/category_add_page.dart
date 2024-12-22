@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_product/helpers/database_helper.dart';
+import 'package:flutter_product/modules/category/category_add/category_add_provider.dart';
 import 'package:flutter_product/widgets/my_appbar.dart';
+import 'package:flutter_product/widgets/my_snackbar.dart';
+import 'package:provider/provider.dart';
 
 class CategoryAddPage extends StatefulWidget {
   const CategoryAddPage({super.key});
@@ -10,42 +12,20 @@ class CategoryAddPage extends StatefulWidget {
 }
 
 class _CategoryAddPageState extends State<CategoryAddPage> {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
   final TextEditingController _categoryTitleController = TextEditingController();
-
-  String? _categoryTitleError;
-
-  Future<void> _addCategory(BuildContext context) async {
-    if (!_validateInputs()) return;
-
-    await _dbHelper.insert(DatabaseHelper.categoriesTable, {
-      'title': _categoryTitleController.text.trim(),
-    });
-    if (context.mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Category added!')));
-    }
-  }
-
-  bool _validateInputs() {
-    bool isValid = true;
-    setState(() {
-      _categoryTitleError = null;
-    });
-    if (_categoryTitleController.text.trim().isEmpty) {
-      setState(() {
-        _categoryTitleError = 'Please enter a product name';
-      });
-      isValid = false;
-    }
-    return isValid;
-  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: _buildAppBar(context),
-      body: _buildBody(context),
+    return ChangeNotifierProvider(
+      create: (_) => CategoryAddProvider(),
+      child: Consumer<CategoryAddProvider>(
+        builder: (BuildContext context, CategoryAddProvider provider, Widget? _) {
+          return Scaffold(
+            appBar: _buildAppBar(context),
+            body: _buildBody(context, provider),
+          );
+        },
+      ),
     );
   }
 
@@ -57,7 +37,7 @@ class _CategoryAddPageState extends State<CategoryAddPage> {
     );
   }
 
-  Widget _buildBody(BuildContext context) {
+  Widget _buildBody(BuildContext context, CategoryAddProvider provider) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -66,14 +46,21 @@ class _CategoryAddPageState extends State<CategoryAddPage> {
             controller: _categoryTitleController,
             decoration: InputDecoration(
               labelText: 'Category Title',
-              errorText: _categoryTitleError,
+              errorText: provider.categoryTitleError,
             ),
+            onChanged: (value) => provider.setCategoryTitle(value),
           ),
           SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () => _addCategory(context),
+              onPressed: () async {
+                final isSuccess = await provider.saveCategory();
+                if (isSuccess && context.mounted) {
+                  Navigator.pop(context);
+                  if (provider.message != '') MySnackbar.showSnackbar(context, provider.message);
+                }
+              },
               child: Text('Save Category'),
             ),
           ),

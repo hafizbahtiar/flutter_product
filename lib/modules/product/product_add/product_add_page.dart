@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_product/helpers/database_helper.dart';
+import 'package:flutter_product/modules/product/product_add/product_add_provider.dart';
 import 'package:flutter_product/widgets/my_appbar.dart';
 import 'package:flutter_product/widgets/my_dropdown.dart';
+import 'package:flutter_product/widgets/my_snackbar.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:provider/provider.dart';
 
 class ProductAddPage extends StatefulWidget {
   const ProductAddPage({super.key});
@@ -12,30 +14,10 @@ class ProductAddPage extends StatefulWidget {
 }
 
 class _ProductAddPageState extends State<ProductAddPage> {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
   final TextEditingController _productNameController = TextEditingController();
   final TextEditingController _productPriceController = TextEditingController();
   final TextEditingController _productDescriptionController = TextEditingController();
   final TextEditingController _productBarcodeController = TextEditingController();
-
-  List<Map<String, dynamic>> _categories = [];
-  List<Map<String, dynamic>> _companies = [];
-  String? _selectedCategoryId;
-  String? _selectedCompanyId;
-  String? _productNameError;
-  String? _productPriceError;
-  String? _descError;
-  String? _barcodeError;
-  String? _compError;
-  String? _categoryError;
-  bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCategories();
-    _loadCompanies();
-  }
 
   @override
   void dispose() {
@@ -160,120 +142,18 @@ class _ProductAddPageState extends State<ProductAddPage> {
     );
   }
 
-  Future<void> _loadCategories() async {
-    try {
-      final categories = await _dbHelper.getAll(DatabaseHelper.categoriesTable);
-      setState(() {
-        _categories = categories;
-        if (_categories.isNotEmpty) {
-          _selectedCategoryId = _categories.first['id'].toString();
-        }
-      });
-    } catch (error) {
-      debugPrint('Error loading categories: $error');
-    }
-  }
-
-  Future<void> _loadCompanies() async {
-    try {
-      final companies = await _dbHelper.getAll(DatabaseHelper.companiesTable);
-      setState(() {
-        _companies = companies;
-        if (_companies.isNotEmpty) {
-          _selectedCompanyId = _companies.first['id'].toString();
-        }
-      });
-    } catch (error) {
-      debugPrint('Error loading companies: $error');
-    }
-  }
-
-  Future<void> _addProduct(BuildContext context) async {
-    if (!_validateInputs()) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      await _dbHelper.insert(DatabaseHelper.productsTable, {
-        'name': _productNameController.text.trim(),
-        'price': double.tryParse(_productPriceController.text.trim()) ?? 0.0,
-        'description': _productDescriptionController.text.trim(),
-        'category_id': int.tryParse(_selectedCategoryId ?? ''),
-        'company_id': int.tryParse(_selectedCompanyId ?? ''),
-      });
-
-      if (context.mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Product added successfully!')),
-        );
-      }
-    } catch (error) {
-      debugPrint('Error adding product: $error');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to add product. Please try again.')),
-        );
-      }
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  bool _validateInputs() {
-    bool isValid = true;
-    setState(() {
-      _productNameError = null;
-      _productPriceError = null;
-      _descError = null;
-      _barcodeError = null;
-      _categoryError = null;
-      _compError = null;
-    });
-    if (_productNameController.text.trim().isEmpty) {
-      setState(() {
-        _productNameError = 'Please enter a product name';
-      });
-      isValid = false;
-    }
-    if (_productPriceController.text.trim().isEmpty || double.tryParse(_productPriceController.text.trim()) == null) {
-      setState(() {
-        _productPriceError = 'Please enter a valid price';
-      });
-      isValid = false;
-    }
-    if (_productDescriptionController.text.trim().isEmpty) {
-      setState(() {
-        _descError = 'Please enter a description';
-      });
-      isValid = false;
-    }
-    if (_productBarcodeController.text.trim().isEmpty) {
-      setState(() {
-        _barcodeError = 'Please enter a barcode';
-      });
-      isValid = false;
-    }
-    if (_selectedCategoryId == null) {
-      setState(() {
-        _categoryError = 'Please enter a category';
-      });
-      isValid = false;
-    }
-    if (_selectedCompanyId == null) {
-      setState(() {
-        _compError = 'Please enter a company';
-      });
-      isValid = false;
-    }
-    return isValid;
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: _buildAppBar(context),
-      body: _isLoading ? _buildLoading() : _buildBody(context),
+    return ChangeNotifierProvider(
+      create: (_) => ProductAddProvider()..init(),
+      child: Consumer<ProductAddProvider>(
+        builder: (BuildContext context, ProductAddProvider provider, Widget? _) {
+          return Scaffold(
+            appBar: _buildAppBar(context),
+            body: _buildBody(context, provider),
+          );
+        },
+      ),
     );
   }
 
@@ -289,7 +169,11 @@ class _ProductAddPageState extends State<ProductAddPage> {
     return const Center(child: CircularProgressIndicator());
   }
 
-  Widget _buildBody(BuildContext context) {
+  Widget _buildBody(BuildContext context, ProductAddProvider provider) {
+    if (provider.isLoading) {
+      return _buildLoading();
+    }
+
     return SingleChildScrollView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       child: Padding(
@@ -302,16 +186,18 @@ class _ProductAddPageState extends State<ProductAddPage> {
               controller: _productNameController,
               decoration: InputDecoration(
                 labelText: 'Product Name',
-                errorText: _productNameError,
+                errorText: provider.productNameError,
               ),
+              onChanged: (value) => provider.setProductName(value),
             ),
             TextField(
               controller: _productPriceController,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 labelText: 'Price',
-                errorText: _productPriceError,
+                errorText: provider.productPriceError,
               ),
+              onChanged: (value) => provider.setProductPrice(value),
             ),
             TextField(
               controller: _productDescriptionController,
@@ -320,45 +206,49 @@ class _ProductAddPageState extends State<ProductAddPage> {
               decoration: InputDecoration(
                 labelText: 'Description',
                 alignLabelWithHint: true,
-                errorText: _descError,
+                errorText: provider.productDescriptionError,
               ),
+              onChanged: (value) => provider.setProductDescription(value),
             ),
             TextField(
               controller: _productBarcodeController,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 labelText: 'Barcode',
-                errorText: _barcodeError,
+                errorText: provider.productBarcodeError,
                 suffixIcon: IconButton(
                   onPressed: () async => _showBarcodeBottomSheet(context),
                   icon: const Icon(Icons.qr_code_scanner),
                   tooltip: 'Scan Barcode',
                 ),
               ),
+              onChanged: (value) => provider.setProductBarcode(value),
             ),
             MyDropdown(
               label: 'Company',
-              items: {for (var comp in _companies) comp['id'].toString(): comp['name'].toString()},
-              selectedValue: _selectedCompanyId,
-              errorLabel: _compError,
-              onSelected: (value) {
-                setState(() => _selectedCompanyId = value);
-              },
+              items: {for (var comp in provider.companies) comp.id.toString(): comp.name.toString()},
+              selectedValue: provider.selectedCompanyId,
+              errorLabel: provider.selectedCompanyIdError,
+              onSelected: (value) => provider.setSelectedCompanyId(value!),
             ),
             MyDropdown(
               label: 'Category',
-              items: {for (var cat in _categories) cat['id'].toString(): cat['title'].toString()},
-              selectedValue: _selectedCategoryId,
-              errorLabel: _categoryError,
-              onSelected: (value) {
-                setState(() => _selectedCategoryId = value);
-              },
+              items: {for (var cat in provider.categories) cat.id.toString(): cat.title.toString()},
+              selectedValue: provider.selectedCategoryId,
+              errorLabel: provider.selectedCategoryIdError,
+              onSelected: (value) => provider.setSelectedCategoryId(value!),
             ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () => _addProduct(context),
+                onPressed: () async {
+                  final isSuccess = await provider.saveProduct();
+                  if (isSuccess && context.mounted) {
+                    Navigator.pop(context);
+                    if (provider.message != '') MySnackbar.showSnackbar(context, provider.message);
+                  }
+                },
                 child: const Text('Save Product'),
               ),
             ),
